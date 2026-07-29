@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DoIt — Collective Intelligence Agent</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f6f7f9;color:#15171a}
+main{max-width:900px;margin:60px auto;padding:24px}
+.card{background:white;border:1px solid #ddd;border-radius:18px;padding:24px;margin:16px 0}
+textarea{width:100%;box-sizing:border-box;min-height:120px;padding:16px;border-radius:12px;border:1px solid #bbb;font:inherit}
+button{padding:12px 18px;border:0;border-radius:10px;background:#111;color:white;cursor:pointer}
+pre{white-space:pre-wrap}.muted{color:#666}.hidden{display:none}
+</style>
+</head>
+<body><main>
+<h1>DoIt</h1>
+<p class="muted">An AI agent that learns from other agents — and teaches them back.</p>
+<div class="card">
+<h2>What do you want done?</h2>
+<textarea id="goal" placeholder="Diagnose why my Kubernetes deployment keeps restarting"></textarea>
+<br><br><button onclick="runGoal()">Start</button>
+</div>
+<div id="out" class="card hidden"></div>
+</main>
+<script>
+let proposalId=null;
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function runGoal(){
+ const out=document.getElementById('out');
+ out.classList.remove('hidden');
+ out.innerHTML='<p>Searching collective intelligence and working...</p>';
+ const response=await fetch('/api/goals',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({goal:document.getElementById('goal').value})
+ });
+ const x=await response.json();
+ proposalId=x.proposed_learning && x.proposed_learning.id;
+ out.innerHTML=`<h2>Result</h2><pre>${esc(x.answer)}</pre>
+ <h3>Plan</h3><ol>${x.plan.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+ <h3>Collective intelligence</h3><p>${x.learnings_considered.length} learnings considered.</p>
+ <h3>Agent receipt</h3><pre>${esc(JSON.stringify(x.receipt,null,2))}</pre>
+ <h3>Proposed learning</h3><pre>${esc(x.proposed_learning?.summary||'None')}</pre>
+ ${proposalId?'<button onclick="approve()">Approve & contribute</button>':''}`;
+}
+async function approve(){
+ const response=await fetch(`/api/learnings/${proposalId}/approve`,{method:'POST'});
+ const x=await response.json();
+ alert(x.ok?'Learning contributed.':'Contribution failed: '+JSON.stringify(x));
+}
+</script>
+</body>
+</html>
